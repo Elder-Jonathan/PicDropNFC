@@ -8,8 +8,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-dropbox
+  cancel-in-progress: false
+
 jobs:
   sync_product1:
+    name: Sync product1
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,14 +25,24 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Sync Dropbox -> product1
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Sync Dropbox -> product1 (requires secrets)
         env:
           DROPBOX_CLIENT_ID: ${{ secrets.DROPBOX_CLIENT_ID }}
           DROPBOX_CLIENT_SECRET: ${{ secrets.DROPBOX_CLIENT_SECRET }}
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+
+          # Dropbox path you will use later (App Folder or Full Dropbox depends on app type)
           DROPBOX_FOLDER_PATH: "/product1"
+
+          # Where images + manifest live in this repo:
           OUTPUT_DIR: "product1/assets/photos"
           GALLERY_JSON: "product1/assets/gallery.json"
+
         run: |
           python scripts/sync_dropbox.py
 
