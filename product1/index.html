@@ -1,27 +1,50 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PicDrop — Product 1</title>
-  <link rel="stylesheet" href="./assets/styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">PicDrop</div>
-    <button id="refreshBtn" class="btn">Refresh</button>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PicDrop — Product 1</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="pragma" content="no-cache" />
+  </head>
 
-  <main class="wrap">
-    <h1>Photos</h1>
-    <p class="sub">
-      This page auto-checks for updates about every 10 minutes.
-      <span id="status"></span>
-    </p>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-title">PicDrop</div>
+        <div class="brand-sub">Product 1</div>
+      </div>
 
-    <div id="grid" class="grid"></div>
-  </main>
+      <div class="actions">
+        <button class="btn" id="refreshBtn" type="button">Refresh</button>
+      </div>
+    </header>
 
-  <script src="./assets/app.js"></script>
-</body>
+    <main class="wrap">
+      <div class="status-row">
+        <h1 class="title">Gallery</h1>
+        <div id="status" class="status">Loading…</div>
+      </div>
+
+      <div id="emptyState" class="empty hidden">
+        <div class="empty-card">
+          <div class="empty-title">No photos yet</div>
+          <div class="empty-sub">
+            This page reads <code>product1/assets/gallery.json</code>.
+            Once Dropbox sync is configured, photos will appear automatically.
+          </div>
+        </div>
+      </div>
+
+      <div id="grid" class="grid"></div>
+    </main>
+
+    <footer class="footer">
+      <span>PicDropNFC</span>
+      <span id="updatedAt" class="muted"></span>
+    </footer>
+
+    <script src="./assets/app.js" defer></script>
+  </body>
 </html>
