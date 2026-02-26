@@ -1,61 +1,94 @@
-const GRID = document.getElementById("grid");
-const STATUS = document.getElementById("status");
-const REFRESH_BTN = document.getElementById("refreshBtn");
+const GALLERY_URL = "./assets/gallery.json";
 
-const TEN_MIN = 10 * 60 * 1000;
+function qs(id) {
+  return document.getElementById(id);
+}
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+function setStatus(text) {
+  qs("status").textContent = text;
+}
+
+function fmtTime(epochSeconds) {
+  if (!epochSeconds) return "";
+  const d = new Date(epochSeconds * 1000);
+  return d.toLocaleString();
+}
+
+function clearGrid() {
+  qs("grid").innerHTML = "";
+}
+
+function showEmpty(show) {
+  const el = qs("emptyState");
+  el.classList.toggle("hidden", !show);
+}
+
+function makeCard(src) {
+  const card = document.createElement("a");
+  card.className = "card";
+  card.href = src;
+  card.target = "_blank";
+  card.rel = "noopener";
+
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.alt = "Photo";
+  img.src = src;
+
+  card.appendChild(img);
+  return card;
 }
 
 async function loadGallery() {
+  setStatus("Loading…");
+  showEmpty(false);
+  clearGrid();
+
   try {
-    STATUS.textContent = " (loading…)";
+    // Cache-bust so GitHub Pages doesn’t serve stale JSON
+    const url = `${GALLERY_URL}?t=${Date.now()}`;
+    const res = await fetch(url, { cache: "no-store" });
 
-    const res = await fetch(`./assets/gallery.json?ts=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`gallery.json fetch failed: ${res.status}`);
-    const data = await res.json();
-
-    const photos = shuffle([...(data.photos || [])]);
-
-    GRID.innerHTML = "";
-    for (const src of photos) {
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.src = src;
-
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.textContent = src.split("/").pop();
-
-      card.appendChild(img);
-      card.appendChild(meta);
-      GRID.appendChild(card);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch gallery.json (HTTP ${res.status})`);
     }
 
-    const updatedAt = data.updatedAt ? new Date(data.updatedAt * 1000) : null;
-    STATUS.textContent = updatedAt
-      ? ` (last synced: ${updatedAt.toLocaleString()})`
-      : " (loaded)";
+    const data = await res.json();
 
-    photos.slice(0, 8).forEach((photoPath) => {
-      const img = new Image();
-      img.src = photoPath;
-    });
-  } catch (error) {
-    console.error(error);
-    STATUS.textContent = " (error loading gallery)";
+    const photos = Array.isArray(data.photos) ? data.photos : [];
+    const updatedAt = data.updatedAt ? fmtTime(data.updatedAt) : "";
+
+    qs("updatedAt").textContent = updatedAt ? `Updated: ${updatedAt}` : "";
+
+    if (photos.length === 0) {
+      setStatus("No photos found.");
+      showEmpty(true);
+      return;
+    }
+
+    // Randomize display order each load
+    const shuffled = [...photos].sort(() => Math.random() - 0.5);
+
+    const grid = qs("grid");
+    for (const rel of shuffled) {
+      grid.appendChild(makeCard(rel));
+    }
+
+    setStatus(`${photos.length} photo(s)`);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
+    showEmpty(true);
   }
 }
 
-REFRESH_BTN.addEventListener("click", loadGallery);
+function init() {
+  qs("refreshBtn").addEventListener("click", loadGallery);
+  loadGallery();
 
-loadGallery();
-setInterval(loadGallery, TEN_MIN);
+  // Light auto-refresh on the client side too
+  setInterval(loadGallery, 10 * 60 * 1000);
+}
+
+document.addEventListener("DOMContentLoaded", init);
