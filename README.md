@@ -1,49 +1,27 @@
 # PicDropNFC
 
-GitHub Pages static galleries that sync images from Dropbox via GitHub Actions.
+GitHub Pages photo gallery per-product folder (e.g. `/product1/`).
 
-## Structure
+## How it works
+- `product1/` is a standalone gallery page.
+- The page loads `product1/assets/gallery.json`.
+- A GitHub Action runs every 10 minutes to sync photos from Dropbox into:
+  - `product1/assets/photos/`
+  - and regenerates `product1/assets/gallery.json`.
 
-```text
-PicDropNFC/
-  .github/workflows/sync-dropbox.yml
-  scripts/sync_dropbox.py
-  product1/
-    index.html
-    assets/
-      app.js
-      styles.css
-      gallery.json
-      photos/
-        .gitkeep
-```
+## Run it now (without Dropbox)
+1. Enable GitHub Pages:
+   - Repo Settings → Pages → Deploy from branch → `main` → `/ (root)`
+2. Open:
+   - `https://elder-jonathan.github.io/PicDropNFC/product1/`
 
-## Dropbox setup
+You should see “No photos yet” which is expected until Dropbox sync is configured.
 
-1. Create a Dropbox app with **Scoped access** and **App folder**.
-2. Enable file metadata read + file content read scopes.
-3. Store photos under `product1/` in the Dropbox app folder.
-4. Add these GitHub repo secrets:
-   - `DROPBOX_CLIENT_ID`
-   - `DROPBOX_CLIENT_SECRET`
-   - `DROPBOX_REFRESH_TOKEN`
+## Dropbox setup (later)
+You will add repository secrets:
+- `DROPBOX_CLIENT_ID`
+- `DROPBOX_CLIENT_SECRET`
+- `DROPBOX_REFRESH_TOKEN`
 
-## GitHub Actions sync
-
-- Workflow: `.github/workflows/sync-dropbox.yml`
-- Triggered manually and every 10 minutes.
-- Uses OAuth refresh token flow to obtain a short-lived Dropbox access token.
-- Syncs Dropbox `/product1` into `product1/assets/photos`.
-- Rewrites `product1/assets/gallery.json` with image list + sync metadata.
-
-## GitHub Pages
-
-Set Pages to deploy from your default branch root (`/`).
-
-Product 1 URL:
-
-`https://<you>.github.io/PicDropNFC/product1/`
-
-## Add more products
-
-Copy `product1/` to `product2/`, `product3/`, etc., and add matching workflow jobs (or a matrix job) that target each product's Dropbox folder and output paths.
+And set the Dropbox folder path used by the workflow:
+- `DROPBOX_FOLDER_PATH: "/product1"`
