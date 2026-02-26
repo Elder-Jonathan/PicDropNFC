@@ -1,0 +1,44 @@
+name: Sync Dropbox photos
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync_product1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Sync Dropbox -> product1
+        env:
+          DROPBOX_CLIENT_ID: ${{ secrets.DROPBOX_CLIENT_ID }}
+          DROPBOX_CLIENT_SECRET: ${{ secrets.DROPBOX_CLIENT_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_FOLDER_PATH: "/product1"
+          OUTPUT_DIR: "product1/assets/photos"
+          GALLERY_JSON: "product1/assets/gallery.json"
+        run: |
+          python scripts/sync_dropbox.py
+
+      - name: Commit changes (if any)
+        run: |
+          git config user.name "picdrop-bot"
+          git config user.email "picdrop-bot@users.noreply.github.com"
+          git add product1/assets/photos product1/assets/gallery.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Sync product1 photos from Dropbox"
+            git push
+          fi

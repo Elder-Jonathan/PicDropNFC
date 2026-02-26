@@ -1,0 +1,31 @@
+:root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+body { margin: 0; background: #0b0f14; color: #e8eef7; }
+.topbar {
+  position: sticky; top: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; background: rgba(12,16,22,.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.brand { font-weight: 700; letter-spacing: .4px; }
+.btn {
+  background: #1b2736; color: #e8eef7;
+  border: 1px solid rgba(255,255,255,.12);
+  padding: 8px 12px; border-radius: 10px;
+  cursor: pointer;
+}
+.btn:hover { transform: translateY(-1px); }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 18px; }
+.sub { color: rgba(232,238,247,.75); margin-top: 6px; }
+.grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  margin-top: 14px;
+}
+.card {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,.03);
+}
+.card img { width: 100%; height: 180px; object-fit: cover; display: block; }
+.card .meta { padding: 10px; font-size: 12px; color: rgba(232,238,247,.75); }
