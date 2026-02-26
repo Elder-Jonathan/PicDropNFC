@@ -2,6 +2,7 @@ import json
 import os
 import pathlib
 import time
+from typing import Dict, List
 
 import requests
 
@@ -14,10 +15,10 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
 def must_env(name: str) -> str:
-    value = os.environ.get(name)
-    if not value:
+    v = os.environ.get(name)
+    if not v:
         raise SystemExit(f"Missing required env var: {name}")
-    return value
+    return v
 
 
 def get_access_token(client_id: str, client_secret: str, refresh_token: str) -> str:
@@ -32,14 +33,21 @@ def get_access_token(client_id: str, client_secret: str, refresh_token: str) -> 
         timeout=30,
     )
     resp.raise_for_status()
-    return resp.json()["access_token"]
+    data = resp.json()
+    if "access_token" not in data:
+        raise SystemExit(f"Dropbox token response missing access_token: {data}")
+    return data["access_token"]
 
 
-def list_all_files(access_token: str, folder_path: str) -> list[dict]:
+def list_all_files(access_token: str, folder_path: str) -> List[dict]:
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    data = {"path": folder_path, "recursive": False, "include_non_downloadable_files": False}
+    payload = {
+        "path": folder_path,
+        "recursive": False,
+        "include_non_downloadable_files": False,
+    }
 
-    resp = requests.post(LIST_FOLDER_URL, headers=headers, json=data, timeout=30)
+    resp = requests.post(LIST_FOLDER_URL, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
     out = resp.json()
 
@@ -55,14 +63,14 @@ def list_all_files(access_token: str, folder_path: str) -> list[dict]:
         out = resp2.json()
         entries.extend(out.get("entries", []))
 
-    files = []
-    for entry in entries:
-        if entry.get(".tag") != "file":
+    files: List[dict] = []
+    for e in entries:
+        if e.get(".tag") != "file":
             continue
-        name = entry.get("name", "")
+        name = e.get("name", "")
         ext = pathlib.Path(name).suffix.lower()
         if ext in IMAGE_EXTS:
-            files.append(entry)
+            files.append(e)
     return files
 
 
@@ -77,54 +85,58 @@ def download_file(access_token: str, dropbox_path: str, local_path: pathlib.Path
     local_path.write_bytes(resp.content)
 
 
-def load_manifest(gallery_json_path: pathlib.Path) -> dict:
-    if gallery_json_path.exists():
-        try:
-            return json.loads(gallery_json_path.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
+def read_json(path: pathlib.Path) -> Dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 
 def main() -> None:
     client_id = must_env("DROPBOX_CLIENT_ID")
     client_secret = must_env("DROPBOX_CLIENT_SECRET")
     refresh_token = must_env("DROPBOX_REFRESH_TOKEN")
+
     folder_path = must_env("DROPBOX_FOLDER_PATH")
     output_dir = pathlib.Path(must_env("OUTPUT_DIR"))
     gallery_json_path = pathlib.Path(must_env("GALLERY_JSON"))
 
     access_token = get_access_token(client_id, client_secret, refresh_token)
 
-    current = load_manifest(gallery_json_path)
-    known_hashes = current.get("hashes", {})
+    manifest = read_json(gallery_json_path)
+    known_hashes = manifest.get("hashes", {})
 
     files = list_all_files(access_token, folder_path)
 
-    updated = False
-    photos_rel = []
+    # Build a list of relative URLs the site will use
+    # (These are relative to product1/, since gallery.json lives under product1/assets/)
+    photos_rel: List[str] = []
+    updated_any = False
 
-    for file_entry in files:
-        name = file_entry["name"]
-        content_hash = file_entry.get("content_hash")
-        dropbox_path = file_entry["path_lower"]
+    for f in files:
+        name = f["name"]
+        dropbox_path = f["path_lower"]
+        content_hash = f.get("content_hash") or ""
 
-        photos_rel.append(f"./assets/photos/{name}")
+        photos_rel.append(f"./photos/{name}")
 
+        # Download if new/changed
         if not content_hash or known_hashes.get(name) != content_hash:
-            local_path = output_dir / name
-            download_file(access_token, dropbox_path, local_path)
-            known_hashes[name] = content_hash or str(time.time())
-            updated = True
+            download_file(access_token, dropbox_path, output_dir / name)
+            known_hashes[name] = content_hash or str(int(time.time()))
+            updated_any = True
 
-    existing_names = {entry["name"] for entry in files}
-    removed = [name for name in list(known_hashes.keys()) if name not in existing_names]
-    for name in removed:
-        known_hashes.pop(name, None)
-        local = output_dir / name
+    # Remove local files that no longer exist in Dropbox
+    existing = {f["name"] for f in files}
+    to_remove = [n for n in list(known_hashes.keys()) if n not in existing]
+    for n in to_remove:
+        known_hashes.pop(n, None)
+        local = output_dir / n
         if local.exists():
             local.unlink()
-            updated = True
+            updated_any = True
 
     payload = {
         "updatedAt": int(time.time()),
@@ -132,10 +144,14 @@ def main() -> None:
         "photos": sorted(photos_rel),
         "hashes": known_hashes,
     }
+
     gallery_json_path.parent.mkdir(parents=True, exist_ok=True)
     gallery_json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    print(f"Synced {len(photos_rel)} photos from Dropbox folder '{folder_path}'. Updated={updated}")
+    print(f"Dropbox folder: {folder_path}")
+    print(f"Photos found: {len(photos_rel)}")
+    print(f"Updated files: {updated_any}")
+    print(f"Wrote manifest: {gallery_json_path}")
 
 
 if __name__ == "__main__":
